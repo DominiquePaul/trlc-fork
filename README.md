@@ -70,7 +70,8 @@ lerobot-teleoperate \
     --robot.joint_velocity_scaling=0.5 \
     --robot.cameras="{ 
         context: {type: opencv, index_or_path: 0, width: 1280, height: 720, fps: 30}, 
-        wrist: {type: opencv, index_or_path: 1, width: 1280, height: 720, fps: 30}
+        wrist1: {type: opencv, index_or_path: 1, width: 1280, height: 720, fps: 30}
+        wrist2: {type: opencv, index_or_path: 2, width: 1280, height: 720, fps: 30}
       }" \
     --teleop.type=dk1_leader \
     --teleop.port=/dev/tty.usbmodem58FA0824311 \
@@ -89,7 +90,8 @@ lerobot-record \
     --robot.joint_velocity_scaling=1.0 \
     --robot.cameras="{ 
         context: {type: opencv, index_or_path: 0, width: 640, height: 360, fps: 30}, 
-        wrist: {type: opencv, index_or_path: 1, width: 640, height: 360, fps: 30}
+        wrist1: {type: opencv, index_or_path: 1, width: 640, height: 360, fps: 30}
+        wrist2: {type: opencv, index_or_path: 2, width: 640, height: 360, fps: 30}
       }" \
     --teleop.type=dk1_leader \
     --teleop.port=/dev/tty.usbmodem58FA0824311 \
@@ -134,17 +136,17 @@ lerobot-record  \
 ```bash
 lerobot-teleoperate \
     --robot.type=bi_dk1_follower \
-    --robot.right_arm_port=/dev/ttyACM0 \
-    --robot.left_arm_port=/dev/ttyACM1 \
+    --robot.left_arm_port=/dev/tty.usbmodem8 \
+    --robot.right_arm_port=/dev/tty.usbmodem00000000050C1 \
     --robot.joint_velocity_scaling=1.0 \
     --robot.cameras="{ 
-        context: {type: opencv, index_or_path: 2, width: 640, height: 360, fps: 30}, 
-        right_wrist: {type: opencv, index_or_path: 4, width: 640, height: 360, fps: 30},
-        left_wrist: {type: opencv, index_or_path: 0, width: 640, height: 360, fps: 30},
+        context: {type: opencv, index_or_path: 0, width: 640, height: 360, fps: 30}, 
+        right_wrist: {type: opencv, index_or_path: 1, width: 640, height: 360, fps: 30},
+        left_wrist: {type: opencv, index_or_path: 2, width: 640, height: 360, fps: 30},
       }" \
     --teleop.type=bi_dk1_leader \
-    --teleop.right_arm_port=/dev/ttyACM2 \
-    --teleop.left_arm_port=/dev/ttyACM3 \
+    --teleop.left_arm_port=/dev/tty.usbmodem5A460819651 \
+    --teleop.right_arm_port=/dev/tty.usbmodem5AB01811381 \
     --display_data=true \
     --display_url=100.88.6.81
 ```

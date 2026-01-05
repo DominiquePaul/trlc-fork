@@ -1,15 +1,25 @@
 from trlc_dk1.follower import DK1Follower, DK1FollowerConfig
 from trlc_dk1.leader import DK1Leader, DK1LeaderConfig
 import time
+from trlc_dk1.config import FOLLOWER_LEFT, FOLLOWER_RIGHT, LEADER_LEFT, LEADER_RIGHT
 
+
+print(f"FOLLOWER_LEFT: {FOLLOWER_LEFT}\nFOLLOWER_RIGHT: {FOLLOWER_RIGHT}\nLEADER_LEFT: {LEADER_LEFT}\nLEADER_RIGHT: {LEADER_RIGHT}")
+
+
+# Leader_port = LEADER_RIGHT
+# Follower_port = FOLLOWER_RIGHT
+
+Leader_port = LEADER_LEFT
+Follower_port = FOLLOWER_LEFT
 
 follower_config = DK1FollowerConfig(
-    port="/dev/tty.usbmodem00000000050C1",
+    port=Follower_port,
     joint_velocity_scaling=1.0,
 )
 
 leader_config = DK1LeaderConfig(
-    port="/dev/tty.usbmodem58FA0824311"
+    port=Leader_port,
 )
 
 leader = DK1Leader(leader_config)

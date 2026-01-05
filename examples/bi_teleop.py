@@ -1,9 +1,15 @@
 from trlc_dk1.bi_follower import BiDK1Follower, BiDK1FollowerConfig
 from trlc_dk1.bi_leader import BiDK1Leader, BiDK1LeaderConfig
+from trlc_dk1.config import FOLLOWER_LEFT, FOLLOWER_RIGHT, LEADER_LEFT, LEADER_RIGHT
 import time
 import logging
 
 from lerobot.utils.utils import init_logging
+
+
+print(f"FOLLOWER_LEFT: {FOLLOWER_LEFT}\nFOLLOWER_RIGHT: {FOLLOWER_RIGHT}\nLEADER_LEFT: {LEADER_LEFT}\nLEADER_RIGHT: {LEADER_RIGHT}")
+
+VELOCITY_SCALING = 0.7
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -11,14 +17,14 @@ logger.setLevel(logging.DEBUG)
 init_logging()
 
 follower_config = BiDK1FollowerConfig(
-    left_arm_port="/dev/ttyACM1",
-    right_arm_port="/dev/ttyACM0",
-    joint_velocity_scaling=1.0,
+    left_arm_port=FOLLOWER_LEFT,
+    right_arm_port=FOLLOWER_RIGHT,
+    joint_velocity_scaling=VELOCITY_SCALING,
 )
 
 leader_config = BiDK1LeaderConfig( 
-    left_arm_port="/dev/ttyACM3",
-    right_arm_port="/dev/ttyACM2",
+    left_arm_port=LEADER_LEFT,
+    right_arm_port=LEADER_RIGHT,
 )
 
 leader = BiDK1Leader(leader_config)

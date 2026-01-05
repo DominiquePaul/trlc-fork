@@ -189,10 +189,10 @@ class DK1Follower(Robot):
             self.control.refresh_motor_status(motor)
             if key == "gripper":
                 # Normalize gripper position between 1 (closed) and 0 (open)
-                obs_dict[f"{key}.pos"] = map_range(
-                    motor.getPosition(), self.gripper_open_pos, self.gripper_closed_pos, 0.0, 1.0)
+                obs_dict[f"{key}.pos"] = np.array(map_range(
+                    motor.getPosition(), self.gripper_open_pos, self.gripper_closed_pos, 0.0, 1.0))
             else:
-                obs_dict[f"{key}.pos"] = motor.getPosition()
+                obs_dict[f"{key}.pos"] = np.array(motor.getPosition())
 
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read state: {dt_ms:.1f}ms")
