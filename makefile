@@ -1,7 +1,7 @@
 .PHONY: checkcamera biteleop watchports debugcamera
 .ONESHELL:
 
-checkcamera:
+camera:
 	python examples/find_cameras.py --capture-images --output-dir ./camera_images
 
 watchports:
