@@ -1,21 +1,30 @@
-.PHONY: checkcamera biteleop watchports debugcamera
+.PHONY: py camera checkcamera biteleop watchports debugcamera
 .ONESHELL:
 
-camera:
-	python examples/find_cameras.py --capture-images --output-dir ./camera_images
+# Always run Python inside Poetry's virtualenv.
+# Override if needed: `make PY="python" ...`
+PY ?= poetry run python
+
+py:
+	@echo "PY=$(PY)"
+	$(PY) -c "import sys; print(sys.executable)"
+	$(PY) --version
+	
+checkcamera:
+	$(PY) examples/find_cameras.py --capture-images --output-dir ./camera_images
 
 watchports:
-	python examples/watch_ports.py --include '/dev/ttyACM*' --include '/dev/ttyUSB*' --verbose
+	$(PY) examples/watch_ports.py --include '/dev/ttyACM*' --include '/dev/ttyUSB*' --verbose
 
 mapports:
-	python examples/map_ports_guided.py
+	$(PY) examples/map_ports_guided.py
 
 debugcamera:
-	python examples/debug_lerobot_camera.py --indices "4,0,2" --width 640 --height 480 --fps 30 --backend v4l2 --v4l2-info
+	$(PY) examples/debug_lerobot_camera.py --indices "4,0,2" --width 640 --height 480 --fps 30 --backend v4l2 --v4l2-info
 
 
 biteleop:
-	python3 - <<'PY'
+	$(PY) - <<'PY'
 	import sys
 	import subprocess
 	
