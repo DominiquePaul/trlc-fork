@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "lerobot-teleoperate: bi_dk1_follower/bi_dk1_leader",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/lerobot-teleoperate",
+            "console": "integratedTerminal",
+            "args": [
+                "--robot.type=bi_dk1_follower",
+                "--teleop.type=bi_dk1_leader",
+                "--teleop.left_arm_port=/dev/ttyACM3",
+                "--robot.left_arm_port=/dev/ttyACM1",
+                "--teleop.right_arm_port=/dev/ttyACM0",
+                "--robot.right_arm_port=/dev/ttyACM2",
+                "--robot.joint_velocity_scaling=1.0",
+                "--robot.cameras={right_wrist: {type: opencv, index_or_path: 0, width: 640, height: 360, fps: 30}, left_wrist: {type: opencv, index_or_path: 2, width: 640, height: 360, fps: 30}}",
+                "--display_data=true",
+                "--display_url=127.0.0.1",
+                "--display_port=9876"
+            ]
+        }
+    ]
+}

@@ -14,6 +14,7 @@
 
 from dataclasses import dataclass, field
 from functools import cached_property
+import sys
 import time
 import logging
 from typing import Any
@@ -24,9 +25,10 @@ from lerobot.robots import Robot, RobotConfig
 
 from trlc_dk1.motors.DM_Control_Python.DM_CAN import *
 from trlc_dk1.follower import DK1Follower, DK1FollowerConfig
+from trlc_dk1.logging_utils import configure_trlc_debug_logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+
 
 
 def map_range(x: float, in_min: float, in_max: float, out_min: float, out_max: float) -> float:
@@ -38,6 +40,7 @@ def map_range(x: float, in_min: float, in_max: float, out_min: float, out_max: f
 class BiDK1FollowerConfig(RobotConfig):
     left_arm_port: str
     right_arm_port: str
+    debug: bool = False
     disable_torque_on_disconnect: bool = False
     joint_velocity_scaling: float = 0.2
     max_gripper_torque: float = 1.0 # Nm (/0.00875m spur gear radius = 114N gripper force)
@@ -59,12 +62,14 @@ class BiDK1Follower(Robot):
         
         left_arm_config = DK1FollowerConfig(
             port=self.config.left_arm_port,
+            debug=self.config.debug,
             disable_torque_on_disconnect=self.config.disable_torque_on_disconnect,
             joint_velocity_scaling=self.config.joint_velocity_scaling,
             max_gripper_torque=self.config.max_gripper_torque,
         )
         right_arm_config = DK1FollowerConfig(
             port=self.config.right_arm_port,
+            debug=self.config.debug,
             disable_torque_on_disconnect=self.config.disable_torque_on_disconnect,
             joint_velocity_scaling=self.config.joint_velocity_scaling,
             max_gripper_torque=self.config.max_gripper_torque,
@@ -99,11 +104,83 @@ class BiDK1Follower(Robot):
         return self.left_arm.is_connected and self.right_arm.is_connected and all(cam.is_connected for cam in self.cameras.values())
 
     def connect(self) -> None:
+        configure_trlc_debug_logging(self.config.debug)
+        logger.debug("Connecting cameras...")
+        # OpenCV cameras can occasionally return a transient read failure during startup.
+        # lerobot's OpenCVCamera.connect(warmup=True) will raise on the first failed read,
+        # which makes teleop brittle. We connect with warmup disabled and do a tolerant
+        # warmup here, with a few retries.
+        # NOTE: We connect cameras *before* enabling motors/torque to avoid power/USB glitches
+        # during motor bring-up that can make UVC cameras drop initial frames.
+        camera_items = list(self.cameras.items())
+        priority = {"context": 0, "right_wrist": 1, "left_wrist": 2}
+        camera_items.sort(key=lambda kv: (priority.get(kv[0], 99), kv[0]))
+
+        for cam_name, cam in camera_items:
+            max_attempts = 5
+            backoff_s = 0.25
+            last_err: Exception | None = None
+
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    cam.connect(warmup=False)
+
+                    # Tolerant warmup:
+                    # - give the device a brief settle time after opening
+                    # - accept transient read failures for a few seconds
+                    # - require only the first good frame (subsequent reads will be in the main loop)
+                    settle_s = 0.25
+                    time.sleep(settle_s)
+
+                    warmup_s = float(getattr(cam, "warmup_s", 1.0))
+                    # Context camera is usually the most fragile under load; give it more time.
+                    extra_s = 12.0 if cam_name == "context" else 0.0
+                    warmup_deadline = time.time() + max(warmup_s, 3.0) + extra_s
+                    ok_frames = 0
+                    failures = 0
+                    last_read_err: Exception | None = None
+
+                    while time.time() < warmup_deadline and ok_frames < 1:
+                        try:
+                            cam.read()
+                            ok_frames += 1
+                        except Exception:
+                            failures += 1
+                            last_read_err = sys.exc_info()[1]  # type: ignore[assignment]
+                            time.sleep(0.10)
+
+                    if ok_frames < 1:
+                        raise RuntimeError(
+                            f"{self} camera '{cam_name}' failed to warm up "
+                            f"(no frames, failures={failures}, last_err={last_read_err})."
+                        )
+
+                    last_err = None
+                    break
+
+                except Exception as e:
+                    last_err = e
+                    try:
+                        if getattr(cam, "is_connected", False):
+                            cam.disconnect()
+                    except Exception:
+                        pass
+
+                    if attempt < max_attempts:
+                        logger.warning(
+                            f"{self} camera '{cam_name}' connect attempt {attempt}/{max_attempts} failed: {e}. "
+                            f"Retrying in {backoff_s:.2f}s..."
+                        )
+                        time.sleep(backoff_s)
+                        backoff_s = min(2.0, backoff_s * 2.0)
+
+            if last_err is not None:
+                raise RuntimeError(f"{self} camera '{cam_name}' failed to connect after {max_attempts} attempts.") from last_err
+
+        logger.debug("Connecting LEFT arm...")
         self.left_arm.connect()
         self.right_arm.connect()
-
-        for cam in self.cameras.values():
-            cam.connect()
+        logger.debug("All connections established!")
 
     @property
     def is_calibrated(self) -> bool:

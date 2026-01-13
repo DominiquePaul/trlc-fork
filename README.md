@@ -59,22 +59,31 @@ Use [LeRobot's CLI](https://huggingface.co/docs/lerobot/il_robots) to identify y
 lerobot-find-port
 ```
 
+
+To identify which camera indices correspond to which physical cameras:
+
+```bash
+python examples/find_cameras.py
+```
+
+This will scan camera indices (0-10 by default) and show preview windows for each available camera. You can visually identify which camera is which and note the corresponding index. Use `--no-preview` to skip previews and just list available cameras, or `--max-index N` to check a different range.
+
 <details>
 <summary>Teleoperation
 </summary>
 
 ```bash
-lerobot-teleoperate \
+lerobot-record \
     --robot.type=dk1_follower \
+    --teleop.type=dk1_leader \
     --robot.port=/dev/tty.usbmodem00000000050C1 \
+    --teleop.port=/dev/tty.usbmodem58FA0824311 \
     --robot.joint_velocity_scaling=0.5 \
     --robot.cameras="{ 
         context: {type: opencv, index_or_path: 0, width: 1280, height: 720, fps: 30}, 
         wrist1: {type: opencv, index_or_path: 1, width: 1280, height: 720, fps: 30}
         wrist2: {type: opencv, index_or_path: 2, width: 1280, height: 720, fps: 30}
       }" \
-    --teleop.type=dk1_leader \
-    --teleop.port=/dev/tty.usbmodem58FA0824311 \
     --display_data=true
 ```
 </details>

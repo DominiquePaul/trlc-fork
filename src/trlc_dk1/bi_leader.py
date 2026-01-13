@@ -17,6 +17,7 @@ import logging
 from lerobot.teleoperators.teleoperator import Teleoperator, TeleoperatorConfig
 
 from trlc_dk1.leader import DK1Leader, DK1LeaderConfig
+from trlc_dk1.logging_utils import configure_trlc_debug_logging
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 class BiDK1LeaderConfig(TeleoperatorConfig):
     left_arm_port: str
     right_arm_port: str
+    debug: bool = False
     gripper_open_pos: int = 2280
     gripper_closed_pos: int = 1670
     
@@ -40,11 +42,13 @@ class BiDK1Leader(Teleoperator):
         
         left_arm_config = DK1LeaderConfig(
             port=self.config.left_arm_port,
+            debug=self.config.debug,
             gripper_open_pos=self.config.gripper_open_pos,
             gripper_closed_pos=self.config.gripper_closed_pos,
         )
         right_arm_config = DK1LeaderConfig(
             port=self.config.right_arm_port,
+            debug=self.config.debug,
             gripper_open_pos=self.config.gripper_open_pos,
             gripper_closed_pos=self.config.gripper_closed_pos,
         )
@@ -67,8 +71,14 @@ class BiDK1Leader(Teleoperator):
         return self.left_arm.is_connected and self.right_arm.is_connected
 
     def connect(self, calibrate: bool = False) -> None:
+        configure_trlc_debug_logging(self.config.debug)
+        logger.debug("Connecting LEFT leader arm on %s ...", self.config.left_arm_port)
         self.left_arm.connect()
-        self.right_arm.connect()    
+        logger.debug("LEFT leader connected.")
+
+        logger.debug("Connecting RIGHT leader arm on %s ...", self.config.right_arm_port)
+        self.right_arm.connect()
+        logger.debug("RIGHT leader connected.")
 
     @property
     def is_calibrated(self) -> bool:

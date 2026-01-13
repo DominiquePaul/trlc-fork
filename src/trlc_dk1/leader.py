@@ -25,6 +25,8 @@ from lerobot.motors.dynamixel import (
     OperatingMode,
 )
 
+from trlc_dk1.logging_utils import configure_trlc_debug_logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,6 +34,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DK1LeaderConfig(TeleoperatorConfig):
     port: str
+    debug: bool = False
     gripper_open_pos: int = 2280
     gripper_closed_pos: int = 1670
     
@@ -72,7 +75,10 @@ class DK1Leader(Teleoperator):
         if self.is_connected:
             raise DeviceAlreadyConnectedError(f"{self} already connected")
 
+        configure_trlc_debug_logging(self.config.debug)
+        logger.info("Connecting %s on port %s ...", self.name, self.config.port)
         self.bus.connect()
+        logger.info("%s bus connected on %s", self.name, self.config.port)
         self.configure()
         
         logger.info(f"{self} connected.")
@@ -85,10 +91,12 @@ class DK1Leader(Teleoperator):
         pass
 
     def configure(self) -> None:
+        logger.debug("%s: configuring motors (disable torque, configure bus)...", self.name)
         self.bus.disable_torque()
         self.bus.configure_motors()
         
         # Enable torque and set to position to open
+        logger.debug("%s: configuring gripper...", self.name)
         self.bus.write("Torque_Enable", "gripper", 0, normalize=False)
         self.bus.write("Operating_Mode", "gripper", OperatingMode.CURRENT_POSITION.value, normalize=False)
         self.bus.write("Current_Limit", "gripper", 100, normalize=False)

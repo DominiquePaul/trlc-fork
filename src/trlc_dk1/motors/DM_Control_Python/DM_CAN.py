@@ -1,8 +1,12 @@
 from time import sleep
+import logging
+import time
 import numpy as np
 from enum import IntEnum
 from struct import unpack
 from struct import pack
+
+logger = logging.getLogger(__name__)
 
 
 class Motor:
@@ -82,10 +86,20 @@ class MotorControl:
         self.serial_ = serial_device
         self.motors_map = dict()
         self.data_save = bytes()  # save data
-        if self.serial_.is_open:  # open the serial port
-            print("Serial port is open")
-            serial_device.close()
+        # Note: some callers pass an already-open serial; we normalize to a clean open state.
+        port = getattr(self.serial_, "port", "<unknown>")
+        if self.serial_.is_open:
+            logger.debug("MotorControl: serial already open on %s; closing and reopening", port)
+            try:
+                serial_device.close()
+            except Exception:
+                logger.exception("MotorControl: failed to close serial on %s", port)
+
+        logger.debug("MotorControl: opening serial on %s ...", port)
+        t0 = time.perf_counter()
         self.serial_.open()
+        dt = time.perf_counter() - t0
+        logger.debug("MotorControl: serial open on %s (%.3fs)", port, dt)
 
     def controlMIT(self, DM_Motor, kp: float, kd: float, q: float, dq: float, tau: float):
         """
@@ -240,8 +254,10 @@ class MotorControl:
 
     def recv(self):
         # 把上次没有解析完的剩下的也放进来
-        data_recv = b''.join([self.data_save, self.serial_.read_all()])
+        data_recv = b"".join([self.data_save, self.serial_.read_all()])
         packets = self.__extract_packets(data_recv)
+        if packets and logger.isEnabledFor(logging.DEBUG):
+            logger.debug("MotorControl: recv parsed %d packets (%d bytes)", len(packets), len(data_recv))
         for packet in packets:
             data = packet[7:15]
             CANID = (packet[6] << 24) | (packet[5] << 16) | (packet[4] << 8) | packet[3]
@@ -251,6 +267,8 @@ class MotorControl:
     def recv_set_param_data(self):
         data_recv = self.serial_.read_all()
         packets = self.__extract_packets(data_recv)
+        if packets and logger.isEnabledFor(logging.DEBUG):
+            logger.debug("MotorControl: recv_set_param_data parsed %d packets (%d bytes)", len(packets), len(data_recv))
         for packet in packets:
             data = packet[7:15]
             CANID = (packet[6] << 24) | (packet[5] << 16) | (packet[4] << 8) | packet[3]
@@ -338,7 +356,16 @@ class MotorControl:
         self.send_data_frame[13] = motor_id & 0xff
         self.send_data_frame[14] = (motor_id >> 8)& 0xff  #id high 8 bits
         self.send_data_frame[21:29] = data
+        # Serial write is one of the most common hang points; instrument it.
+        port = getattr(self.serial_, "port", "<unknown>")
+        t0 = time.perf_counter()
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("MotorControl: write -> port=%s can_id=0x%X", port, motor_id)
         self.serial_.write(bytes(self.send_data_frame.T))
+        dt = time.perf_counter() - t0
+        # Only warn on slow writes to avoid log spam.
+        if dt > 0.5:
+            logger.warning("MotorControl: slow serial write (%.3fs) on %s (can_id=0x%X)", dt, port, motor_id)
 
     def __read_RID_param(self, Motor, RID):
         can_id_l = Motor.SlaveID & 0xff #id low 8 bits

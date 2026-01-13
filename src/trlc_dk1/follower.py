@@ -26,6 +26,7 @@ from lerobot.robots.utils import ensure_safe_goal_position
 from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 
 from trlc_dk1.motors.DM_Control_Python.DM_CAN import *
+from trlc_dk1.logging_utils import configure_trlc_debug_logging
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ def map_range(x: float, in_min: float, in_max: float, out_min: float, out_max: f
 @dataclass
 class DK1FollowerConfig(RobotConfig):
     port: str
+    debug: bool = False
     disable_torque_on_disconnect: bool = False
     joint_velocity_scaling: float = 0.2
     max_gripper_torque: float = 1.0 # Nm (/0.00875m spur gear radius = 114N gripper force)
@@ -113,12 +115,19 @@ class DK1Follower(Robot):
         if self.is_connected:
             raise DeviceAlreadyConnectedError(f"{self} already connected")
 
+        configure_trlc_debug_logging(self.config.debug)
+        logger.info("Connecting to serial port: %s ...", self.config.port)
         self.serial_device = serial.Serial(
             self.config.port, 921600, timeout=0.5)
         time.sleep(0.5)
+        logger.info("Serial port opened: %s", self.config.port)
 
+        logger.debug("Initializing motor control...")
         self.control = MotorControl(self.serial_device)
         self.bus_connected = True
+        logger.debug("Motor control initialized")
+        
+        logger.info("Configuring motors...")
         self.configure()
 
         for cam in self.cameras.values():
@@ -134,20 +143,27 @@ class DK1Follower(Robot):
     def configure(self) -> None:
 
         for key, motor in self.motors.items():
+            logger.debug("Configuring %s (%s) ...", key, motor.MotorType.name)
             self.control.addMotor(motor)
 
-            for _ in range(3):
+            for i in range(3):
+                logger.debug("  %s: refresh status %d/3", key, i + 1)
                 self.control.refresh_motor_status(motor)
                 time.sleep(0.01)
 
-            if self.control.read_motor_param(motor, DM_variable.CTRL_MODE) is not None:
-                print(f"{key} ({motor.MotorType.name}) is connected.")
+            logger.debug("  %s: reading motor parameters (CTRL_MODE)", key)
+            ctrl_mode = self.control.read_motor_param(motor, DM_variable.CTRL_MODE)
+            if ctrl_mode is not None:
+                logger.info("%s (%s) connected (CTRL_MODE=%s)", key, motor.MotorType.name, ctrl_mode)
 
+                logger.debug("  %s: switching control mode to POS_VEL", key)
                 self.control.switchControlMode(motor, Control_Type.POS_VEL)
+                logger.debug("  %s: enabling motor", key)
                 self.control.enable(motor)
             else:
+                logger.error("%s (%s) did not respond (failed to read CTRL_MODE)", key, motor.MotorType.name)
                 raise Exception(
-                    f"Unable to read from {key} ({motor.MotorType.name}).")
+                    f"Unable to read from {key} ({motor.MotorType.name}). Check motor connections and power.")
 
         for joint in ["joint_1", "joint_2", "joint_3"]:
             self.control.change_motor_param(self.motors[joint], DM_variable.ACC, 10.0)
