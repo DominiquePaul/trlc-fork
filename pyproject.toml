@@ -10,7 +10,11 @@ dependencies = [
   "pyserial>=3.5",
   "dynamixel-sdk>=3.7.31",
   "lerobot@git+https://github.com/robot-learning-co/lerobot.git@trlc-dk1",
+  "opencv-python (>=4.12.0.88,<5.0.0.0)",
+  "ipykernel (>=7.1.0,<8.0.0)",
+  "opencv-python-headless (>=4.12.0.88,<5.0.0.0)",
 ]
+requires-python = ">=3.10,<4.0"
 
 authors = [
   {name = "Jannik Grothusen", email = "jannik@robot-learning.co"},
