@@ -1,17 +1,30 @@
-.PHONY: py camera checkcamera biteleop watchports debugcamera
+.PHONY: sync lock py checkcamera watchports mapports debugcamera biteleop
 .ONESHELL:
 
-# Always run Python inside Poetry's virtualenv.
+# Always run Python inside uv's project environment.
 # Override if needed: `make PY="python" ...`
-PY ?= poetry run python
+UV ?= uv
+PY ?= $(UV) run python
+
+# Camera capture defaults for `make camera` (override: `make camera CAM_W=640 CAM_H=360`)
+CAM_W ?= 640
+CAM_H ?= 360
+
+# Install/update the project environment (creates/updates .venv + uv.lock as needed)
+sync:
+	$(UV) sync --group dev
+
+# Refresh the lockfile without installing
+lock:
+	$(UV) lock
 
 py:
 	@echo "PY=$(PY)"
 	$(PY) -c "import sys; print(sys.executable)"
 	$(PY) --version
 	
-checkcamera:
-	$(PY) examples/find_cameras.py --capture-images --output-dir ./camera_images
+camera:
+	$(PY) examples/find_cameras.py --capture-images --output-dir ./camera_images --width $(CAM_W) --height $(CAM_H) --grid-tile-width $(CAM_W) --grid-tile-height $(CAM_H)
 
 watchports:
 	$(PY) examples/watch_ports.py --include '/dev/ttyACM*' --include '/dev/ttyUSB*' --verbose
@@ -35,6 +48,7 @@ biteleop:
 	    "{ "
 	    f"right_wrist: {{type: opencv, index_or_path: {cfg.CAMERA_RIGHT_INDEX}, width: 640, height: 480, fps: 30}}, "
 	    f"left_wrist: {{type: opencv, index_or_path: {cfg.CAMERA_LEFT_INDEX}, width: 640, height: 480, fps: 30}}, "
+	    f"context: {{type: opencv, index_or_path: {cfg.CAMERA_CONTEXT}, width: 640, height: 480, fps: 30}}, "
 	    "}"
 	)
 	

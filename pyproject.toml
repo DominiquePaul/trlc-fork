@@ -1,31 +1,36 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.0"]
 build-backend = "hatchling.build"
 
 [project]
 name = "trlc_dk1"
 version = "0.1.0"
+description = "TRLC DK1 robotics dev kit integration (LeRobot-compatible)."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10,<4.0"
+authors = [{ name = "Jannik Grothusen", email = "jannik@robot-learning.co" }]
+maintainers = [{ name = "Jannik Grothusen", email = "jannik@robot-learning.co" }]
 dependencies = [
   "numpy>=2.0.1",
   "pyserial>=3.5",
   "dynamixel-sdk>=3.7.31",
-  "lerobot@git+https://github.com/robot-learning-co/lerobot.git@trlc-dk1",
-  "opencv-python (>=4.12.0.88,<5.0.0.0)",
-  "ipykernel (>=7.1.0,<8.0.0)",
-  "opencv-python-headless (>=4.12.0.88,<5.0.0.0)",
+  "opencv-python-headless>=4.12.0.88,<5.0.0.0",
+  "lerobot @ git+https://github.com/robot-learning-co/lerobot.git@trlc-dk1",
 ]
-requires-python = ">=3.10,<4.0"
 
-authors = [
-  {name = "Jannik Grothusen", email = "jannik@robot-learning.co"},
-]
-maintainers = [
-  {name = "Jannik Grothusen", email = "jannik@robot-learning.co"},
-]
+[project.optional-dependencies]
+gui = ["opencv-python>=4.12.0.88,<5.0.0.0"]
+
+[dependency-groups]
+dev = ["ipykernel>=7.1.0,<8.0.0"]
 
 [project.urls]
 Homepage = "https://www.robot-learning.co/"
 Documentation = "https://www.docs.robot-learning.co/"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/trlc_dk1"]
 
 [tool.hatch.metadata]
 allow-direct-references = true

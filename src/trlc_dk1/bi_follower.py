@@ -105,7 +105,7 @@ class BiDK1Follower(Robot):
 
     def connect(self) -> None:
         configure_trlc_debug_logging(self.config.debug)
-        logger.debug("Connecting cameras...")
+        print(f"[BiDK1Follower] Connecting {len(self.cameras)} cameras...")
         # OpenCV cameras can occasionally return a transient read failure during startup.
         # lerobot's OpenCVCamera.connect(warmup=True) will raise on the first failed read,
         # which makes teleop brittle. We connect with warmup disabled and do a tolerant
@@ -117,6 +117,7 @@ class BiDK1Follower(Robot):
         camera_items.sort(key=lambda kv: (priority.get(kv[0], 99), kv[0]))
 
         for cam_name, cam in camera_items:
+            print(f"[BiDK1Follower] Connecting camera '{cam_name}'...")
             max_attempts = 5
             backoff_s = 0.25
             last_err: Exception | None = None
@@ -176,11 +177,13 @@ class BiDK1Follower(Robot):
 
             if last_err is not None:
                 raise RuntimeError(f"{self} camera '{cam_name}' failed to connect after {max_attempts} attempts.") from last_err
+            print(f"[BiDK1Follower] Camera '{cam_name}' connected!")
 
-        logger.debug("Connecting LEFT arm...")
+        print("[BiDK1Follower] All cameras connected. Connecting LEFT arm...")
         self.left_arm.connect()
+        print("[BiDK1Follower] LEFT arm connected. Connecting RIGHT arm...")
         self.right_arm.connect()
-        logger.debug("All connections established!")
+        print("[BiDK1Follower] All connections established!")
 
     @property
     def is_calibrated(self) -> bool:

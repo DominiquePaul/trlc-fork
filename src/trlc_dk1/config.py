@@ -32,6 +32,36 @@ LEADER_RIGHT = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5A46081965-if00"
 FOLLOWER_LEFT = "/dev/serial/by-path/platform-a80aa10000.usb-usb-0:4.2.1.3:1.0"
 FOLLOWER_RIGHT = "/dev/serial/by-path/platform-a80aa10000.usb-usb-0:4.2.1.1:1.0"
 
-CAMERA_CONTEXT_INDEX = 0
-CAMERA_RIGHT_INDEX = 2
-CAMERA_LEFT_INDEX = 4
+CAMERA_CONTEXT_INDEX = 4
+CAMERA_RIGHT_INDEX = 0
+CAMERA_LEFT_INDEX = 2
+
+# ---------------------------------------------------------------------------
+# Recording defaults (used by scripts like `scripts/record_dataset.py`)
+# ---------------------------------------------------------------------------
+
+# Control / recording
+FPS = 30
+NUM_EPISODES = 50
+EPISODE_TIME_S = 600
+RESET_TIME_S = 0.0
+TASK_DESCRIPTION = "Place PCB into testing device, wait, and place into right box."
+
+# Robot behavior
+JOINT_VELOCITY_SCALING = 1.0
+
+# Camera capture defaults (OpenCV cameras)
+CAMERA_WIDTH = 640
+CAMERA_HEIGHT = 360
+CAMERA_FOURCC = "MJPG"
+
+# Dataset behavior
+PUSH_TO_HUB = False
+RESUME = False
+
+# Visualization
+DISPLAY_DATA = False
+
+# If you don't pass `--dataset.repo_id`, scripts can build it as "{USER}/{DATASET_NAME}".
+# Set to None to keep auto-generating a timestamped dataset name.
+DATASET_NAME: str | None = "pcb_basic"

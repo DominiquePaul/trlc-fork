@@ -43,13 +43,23 @@ Copyright 2025 The Robot Learning Company UG (haftungsbeschränkt). All rights r
 
 ## Installation
 
+Poetry **>= 2.1** is required for this repo because `lerobot` is pulled from a git revision and uses PEP 621 metadata.
+
 ```
 conda create -n dk1 python=3.10
 conda activate dk1
-pip install -e .
+# Install Poetry (example)
+# python -m pip install --user "poetry>=2.1.4"
+#
+# Install dependencies via Poetry into the active env (recommended)
+poetry config virtualenvs.create false --local
+poetry install --with dev
+
+# If you want OpenCV GUI support (cv2.imshow previews), add:
+# poetry install --with dev -E gui
 ```
 
-(This should also install [TRLC's fork of LeRobot](https://github.com/robot-learning-co/lerobot) and use branch `trlc-dk1`)
+(This installs [TRLC's fork of LeRobot](https://github.com/robot-learning-co/lerobot) at rev `trlc-dk1`.)
 
 ## Examples
 

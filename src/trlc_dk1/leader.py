@@ -29,6 +29,34 @@ from trlc_dk1.logging_utils import configure_trlc_debug_logging
 
 logger = logging.getLogger(__name__)
 
+def _patch_dynamixel_clear_port_to_be_non_blocking(bus: DynamixelMotorsBus) -> None:
+    """
+    Work around a common hang in Dynamixel SDK on Linux where `PortHandler.clearPort()`
+    calls `serial.flush()` -> `termios.tcdrain()` and can block indefinitely on some
+    USB-serial adapters / driver states.
+
+    We only need to clear buffers; `reset_*_buffer()` does not block like `flush()`.
+
+    Added by DP
+    """
+
+    def _non_blocking_clear_port() -> None:
+        ser = getattr(bus.port_handler, "ser", None)
+        if ser is None:
+            return
+        # Clear any stale bytes without waiting for TX drain.
+        try:
+            ser.reset_input_buffer()
+        except Exception:
+            pass
+        try:
+            ser.reset_output_buffer()
+        except Exception:
+            pass
+
+    # Patch this instance only (avoid global side-effects).
+    bus.port_handler.clearPort = _non_blocking_clear_port  # type: ignore[method-assign]
+
 
 @TeleoperatorConfig.register_subclass("dk1_leader")
 @dataclass
@@ -77,6 +105,7 @@ class DK1Leader(Teleoperator):
 
         configure_trlc_debug_logging(self.config.debug)
         logger.info("Connecting %s on port %s ...", self.name, self.config.port)
+        _patch_dynamixel_clear_port_to_be_non_blocking(self.bus)
         self.bus.connect()
         logger.info("%s bus connected on %s", self.name, self.config.port)
         self.configure()

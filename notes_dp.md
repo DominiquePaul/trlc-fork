@@ -1,6 +1,14 @@
+# Setup
+
+Install X11 configuration plugin on Jetson `sudo apt-get install -y libxtst-dev`
+
+Check ports with permanent address: `ls -la /dev/serial/by-path/`
+
+Annoying: keyboad listener doesn't work when you're connected via jetson. 
 
 
 # Additions Dominique
+
 
 Check which cameras are on which index: `make checkcamera`
 Run an improved version of `lerobot-find-port` which runs continuously and doesn't require pressing enter: `make watchports`
@@ -161,13 +169,13 @@ lerobot-teleoperate \
 ```
 
 ```bash
-lerobot-teleoperate \
+uv run lerobot-teleoperate \
     --robot.type=bi_dk1_follower \
     --teleop.type=bi_dk1_leader \
-    --teleop.left_arm_port=/dev/ttyACM1 \
-    --robot.left_arm_port=/dev/ttyACM3 \
-    --teleop.right_arm_port=/dev/ttyACM0 \
-    --robot.right_arm_port=/dev/ttyACM2 \
+    --teleop.left_arm_port=/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AB0181138-if00 \
+    --robot.left_arm_port=/dev/serial/by-path/platform-a80aa10000.usb-usb-0:4.2.1.3:1.0 \
+    --teleop.right_arm_port=/dev/serial/by-id/usb-1a86_USB_Single_Serial_5A46081965-if00 \
+    --robot.right_arm_port=/dev/serial/by-path/platform-a80aa10000.usb-usb-0:4.2.1.1:1.0 \
     --robot.joint_velocity_scaling=1.0 \
     --robot.cameras="{ 
         right_wrist: {type: opencv, index_or_path: 2, width: 640, height: 360, fps: 30},
@@ -179,8 +187,45 @@ lerobot-teleoperate \
 
 ### Collect data
 
+#### Option A: config-driven recorder (recommended for DK1)
+
+If you don’t want to pass ports/camera indices every time, use `scripts/record_dataset.py`.
+It **pulls defaults and device mappings from** `src/trlc_dk1/config.py`:
+
+- **Ports / devices**: `LEADER_LEFT/RIGHT`, `FOLLOWER_LEFT/RIGHT`, `CAMERA_*_INDEX`
+- **Recording defaults**: `FPS`, `NUM_EPISODES`, `EPISODE_TIME_S`, `RESET_TIME_S`, `TASK_DESCRIPTION`,
+  `JOINT_VELOCITY_SCALING`, `CAMERA_WIDTH/HEIGHT/FOURCC`, `PUSH_TO_HUB`, `RESUME`
+
+You can still override the important knobs using the **same flag names** as `lerobot-record`:
+
+- `--robot.joint_velocity_scaling=...`
+- `--dataset.repo_id=...`
+- `--dataset.push_to_hub=true|false`
+- `--dataset.num_episodes=...`
+- `--dataset.episode_time_s=...`
+- `--dataset.reset_time_s=...`
+- `--dataset.single_task="..."`
+- `--resume=true|false` (resume into the existing local dataset cache for `--dataset.repo_id`)
+
+Example (matches the command below, but without repeating the hardware mapping):
+
 ```bash
-lerobot-record \
+cd /home/dominique/dm/trlc-fork
+uv run python scripts/record_dataset.py \
+  --robot.joint_velocity_scaling=1.0 \
+  --dataset.repo_id=$USER/pcb_testing \
+  --dataset.push_to_hub=true \
+  --dataset.num_episodes=10 \
+  --dataset.episode_time_s=60 \
+  --dataset.reset_time_s=0 \
+  --dataset.single_task="Place the PCB from left bin into testing device, close the lid, then open lid, and place the PCB in right bin" \
+  --resume=true
+```
+
+#### Option B: use `lerobot-record` directly
+
+```bash
+uv run lerobot-record \
     --robot.type=bi_dk1_follower \
     --teleop.type=bi_dk1_leader \
     --teleop.left_arm_port=/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AB0181138-if00 \
@@ -189,10 +234,11 @@ lerobot-record \
     --robot.right_arm_port=/dev/serial/by-path/platform-a80aa10000.usb-usb-0:4.2.1.1:1.0 \
     --robot.joint_velocity_scaling=1.0 \
     --robot.cameras="{ 
-        right_wrist: {type: opencv, index_or_path: 0, width: 640, height: 360, fps: 30, fourcc: MJPG},
-        left_wrist: {type: opencv, index_or_path: 2, width: 640, height: 360, fps: 30, fourcc: MJPG},
+        right_wrist: {type: opencv, index_or_path: 0, width: 640, height: 480, fps: 30, fourcc: MJPG},
+        left_wrist: {type: opencv, index_or_path: 2, width: 640, height: 480, fps: 30, fourcc: MJPG},
+        context: {type: opencv, index_or_path: 4, width: 640, height: 480, fps: 30, fourcc: MJPG},
         }" \
-    --dataset.repo_id=$USER/pcb_dummy_v1 \
+    --dataset.repo_id=$USER/pcb_testing \
     --dataset.push_to_hub=true \
     --dataset.num_episodes=10 \
     --dataset.episode_time_s=60 \
@@ -207,3 +253,5 @@ lerobot-record \
 
 hf repo create dopaul/pcb_dummy_v1 --repo-type dataset --private
 hf upload-large-folder dopaul/pcb_dummy_v1 /home/dominique/.cache/huggingface/lerobot/dominique/pcb_dummy_v1 --repo-type dataset
+
+

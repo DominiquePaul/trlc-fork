@@ -124,23 +124,47 @@ def check_gui_available():
         return False
 
 
-def test_camera(index, show_preview=True, preview_time=3, gui_available=True):
+def test_camera(
+    index,
+    show_preview=True,
+    preview_time=3,
+    gui_available=True,
+    requested_width=None,
+    requested_height=None,
+    requested_fourcc=None,
+):
     """Test if a camera index is available and show preview."""
     cv2 = _require_cv2()
     cap = cv2.VideoCapture(index)
     
     if not cap.isOpened():
         return False, None
+
+    # Best-effort: request a specific mode if provided.
+    # Note: V4L2/OpenCV may clamp to the nearest supported mode, so always verify via the frame.
+    try:
+        if requested_fourcc:
+            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*str(requested_fourcc)))
+    except Exception:
+        pass
+    try:
+        if requested_width is not None:
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, int(requested_width))
+        if requested_height is not None:
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, int(requested_height))
+    except Exception:
+        pass
     
     # Try to read a frame to confirm it's working
+    for _ in range(3):
+        cap.read()
     ret, frame = cap.read()
     if not ret or frame is None:
         cap.release()
         return False, None
     
     # Get camera properties
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    height, width = frame.shape[:2]
     fps = cap.get(cv2.CAP_PROP_FPS)
     
     device_info = None
@@ -202,7 +226,15 @@ def test_camera(index, show_preview=True, preview_time=3, gui_available=True):
     return True, info
 
 
-def capture_camera_image(index, output_dir=None, save_image=True):
+def capture_camera_image(
+    index,
+    output_dir=None,
+    save_image=True,
+    requested_width=None,
+    requested_height=None,
+    requested_fourcc=None,
+    best_resolution=True,
+):
     """Capture a single frame from a camera and save it as an image file.
 
     Returns:
@@ -214,6 +246,83 @@ def capture_camera_image(index, output_dir=None, save_image=True):
     
     if not cap.isOpened():
         return None, None
+
+    def _try_set_best_resolution(cap):
+        """
+        Best-effort attempt to get the highest available resolution.
+        OpenCV/V4L2 will clamp to the nearest supported mode, so we must verify
+        by actually reading frames and checking their shape.
+        """
+        # Prefer MJPG where supported: often unlocks higher resolutions/FPS on UVC devices.
+        try:
+            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+        except Exception:
+            pass
+
+        # Common UVC modes, highest-first. We pick the best we can actually read.
+        candidates = [
+            (7680, 4320),
+            (5120, 2880),
+            (3840, 2160),
+            (3264, 2448),
+            (2592, 1944),
+            (2560, 1440),
+            (2048, 1536),
+            (1920, 1080),
+            (1600, 1200),
+            (1280, 720),
+            (1024, 768),
+            (800, 600),
+            (640, 480),
+        ]
+
+        best = None  # (area, w, h)
+
+        for w, h in candidates:
+            try:
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, int(w))
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, int(h))
+
+                # Warm up a bit after mode switch.
+                for _ in range(3):
+                    cap.read()
+                ret, frame = cap.read()
+                if not ret or frame is None:
+                    continue
+
+                fh, fw = frame.shape[:2]
+                area = int(fw) * int(fh)
+                if best is None or area > best[0]:
+                    best = (area, fw, fh)
+            except Exception:
+                continue
+
+        # If we found a best mode, set it once more to reduce chance of drift.
+        if best is not None:
+            _, bw, bh = best
+            try:
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, int(bw))
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, int(bh))
+            except Exception:
+                pass
+
+    # Either force a requested mode, or fall back to the historical "best resolution" behavior.
+    try:
+        if requested_fourcc:
+            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*str(requested_fourcc)))
+    except Exception:
+        pass
+
+    if requested_width is not None or requested_height is not None:
+        try:
+            if requested_width is not None:
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, int(requested_width))
+            if requested_height is not None:
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, int(requested_height))
+        except Exception:
+            pass
+    elif best_resolution:
+        _try_set_best_resolution(cap)
     
     # Read a few frames to let the camera stabilize
     for _ in range(5):
@@ -377,6 +486,10 @@ def capture_all_cameras(
     grid_font_path=None,
     grid_font_size=28,
     save_individual_images=False,
+    requested_width=None,
+    requested_height=None,
+    requested_fourcc=None,
+    best_resolution=True,
 ):
     """Capture images from all available cameras.
 
@@ -395,7 +508,15 @@ def capture_all_cameras(
         else:
             print(f"Capturing from camera {index}...", end=' ', flush=True)
 
-        filename, frame = capture_camera_image(index, output_dir, save_image=save_individual_images)
+        filename, frame = capture_camera_image(
+            index,
+            output_dir,
+            save_image=save_individual_images,
+            requested_width=requested_width,
+            requested_height=requested_height,
+            requested_fourcc=requested_fourcc,
+            best_resolution=best_resolution,
+        )
 
         if frame is None:
             print("✗ Failed to capture")
@@ -476,6 +597,29 @@ def main():
         help='Directory to save captured images (default: current directory)'
     )
     parser.add_argument(
+        '--width',
+        type=int,
+        default=None,
+        help='Requested capture width for cameras (default: unset; with --capture-images uses best available)'
+    )
+    parser.add_argument(
+        '--height',
+        type=int,
+        default=None,
+        help='Requested capture height for cameras (default: unset; with --capture-images uses best available)'
+    )
+    parser.add_argument(
+        '--fourcc',
+        type=str,
+        default=None,
+        help='Requested FOURCC (e.g. MJPG, YUYV). If unset, OpenCV defaults (best-effort MJPG when using best-res).'
+    )
+    parser.add_argument(
+        '--no-best-resolution',
+        action='store_true',
+        help='With --capture-images and no explicit --width/--height, do not try to force the highest available resolution.'
+    )
+    parser.add_argument(
         '--grid-tile-width',
         type=int,
         default=640,
@@ -526,7 +670,10 @@ def main():
             index,
             show_preview=not args.no_preview and gui_available,
             preview_time=args.preview_time,
-            gui_available=gui_available
+            gui_available=gui_available,
+            requested_width=args.width,
+            requested_height=args.height,
+            requested_fourcc=args.fourcc,
         )
         
         if is_available:
@@ -571,6 +718,10 @@ def main():
             grid_font_path=args.grid_font_path,
             grid_font_size=args.grid_font_size,
             save_individual_images=args.save_individual_images,
+            requested_width=args.width,
+            requested_height=args.height,
+            requested_fourcc=args.fourcc,
+            best_resolution=not args.no_best_resolution,
         )
     
     print("\n" + "=" * 60)
