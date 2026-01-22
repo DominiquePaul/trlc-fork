@@ -1,4 +1,4 @@
-.PHONY: sync lock py checkcamera watchports mapports debugcamera biteleop
+ .PHONY: sync lock py checkcamera watchports mapports debugcamera biteleop
 .ONESHELL:
 
 # Always run Python inside uv's project environment.
@@ -44,13 +44,13 @@ biteleop:
 	sys.path.insert(0, "src")
 	import trlc_dk1.config as cfg
 	
-	cameras = (
-	    "{ "
-	    f"right_wrist: {{type: opencv, index_or_path: {cfg.CAMERA_RIGHT_INDEX}, width: 640, height: 480, fps: 30}}, "
-	    f"left_wrist: {{type: opencv, index_or_path: {cfg.CAMERA_LEFT_INDEX}, width: 640, height: 480, fps: 30}}, "
-	    f"context: {{type: opencv, index_or_path: {cfg.CAMERA_CONTEXT}, width: 640, height: 480, fps: 30}}, "
-	    "}"
-	)
+	# cameras = (
+	#     "{ "
+	#     f"right_wrist: {{type: opencv, index_or_path: {cfg.CAMERA_RIGHT_INDEX}, width: 640, height: 480, fps: 30}}, "
+	#     f"left_wrist: {{type: opencv, index_or_path: {cfg.CAMERA_LEFT_INDEX}, width: 640, height: 480, fps: 30}}, "
+	#     f"context: {{type: opencv, index_or_path: {cfg.CAMERA_CONTEXT_INDEX}, width: 640, height: 480, fps: 30}}, "
+	#     "}"
+	# )
 	
 	cmd = [
 	    "lerobot-teleoperate",
@@ -60,8 +60,8 @@ biteleop:
 	    f"--robot.left_arm_port={cfg.FOLLOWER_LEFT}",
 	    f"--teleop.right_arm_port={cfg.LEADER_RIGHT}",
 	    f"--robot.right_arm_port={cfg.FOLLOWER_RIGHT}",
-	    "--robot.joint_velocity_scaling=1.0",
-	    f"--robot.cameras={cameras}",
+	    "--robot.joint_velocity_scaling=1.0"
+	    # f"--robot.cameras={cameras}",
 	]
 	
 	print("Running:", " ".join(cmd))

@@ -43,7 +43,7 @@ CAMERA_LEFT_INDEX = 2
 # Control / recording
 FPS = 30
 NUM_EPISODES = 50
-EPISODE_TIME_S = 600
+EPISODE_TIME_S = 1200
 RESET_TIME_S = 0.0
 TASK_DESCRIPTION = "Place PCB into testing device, wait, and place into right box."
 
