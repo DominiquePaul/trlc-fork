@@ -1,4 +1,4 @@
- .PHONY: sync lock py checkcamera watchports mapports debugcamera biteleop
+ .PHONY: sync lock py checkcamera watchports mapports debugcamera teleop biteleop
 .ONESHELL:
 
 # Always run Python inside uv's project environment.
@@ -35,6 +35,35 @@ mapports:
 debugcamera:
 	$(PY) examples/debug_lerobot_camera.py --indices "4,0,2" --width 640 --height 480 --fps 30 --backend v4l2 --v4l2-info
 
+
+# Single arm teleoperation (override: `make teleop ARM=left`)
+ARM ?= right
+
+teleop:
+	$(PY) - <<'PY'
+	import sys
+	import subprocess
+	
+	sys.path.insert(0, "src")
+	import trlc_dk1.config as cfg
+	
+	arm = "$(ARM)"
+	ports = {"right": (cfg.LEADER_RIGHT, cfg.FOLLOWER_RIGHT), "left": (cfg.LEADER_LEFT, cfg.FOLLOWER_LEFT)}
+	assert arm in ports, f"ARM must be 'left' or 'right', got '{arm}'"
+	leader_port, follower_port = ports[arm]
+	
+	cmd = [
+	    "lerobot-teleoperate",
+	    "--robot.type=dk1_follower",
+	    "--teleop.type=dk1_leader",
+	    f"--teleop.port={leader_port}",
+	    f"--robot.port={follower_port}",
+	    "--robot.joint_velocity_scaling=1.0",
+	]
+	
+	print(f"Running single-arm teleop ({arm} arm):", " ".join(cmd))
+	subprocess.run(cmd, check=True)
+	PY
 
 biteleop:
 	$(PY) - <<'PY'
